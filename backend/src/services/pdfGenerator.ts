@@ -123,24 +123,24 @@ function renderHtml(result: AnalysisResult): string {
     <style>
       :root { --text: #111827; --muted: #6b7280; --border: #e5e7eb; --bg: #ffffff; }
       * { box-sizing: border-box; }
-      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: var(--text); background: var(--bg); }
-      .page { padding: 48px 56px 72px; }
-      h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.02em; }
-      .meta { margin: 0 0 24px; color: var(--muted); font-size: 12px; }
+      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: var(--text); background: var(--bg); font-size: 15px; }
+      .page { padding: 40px 48px 56px; }
+      h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: -0.02em; }
+      .meta { margin: 0 0 24px; color: var(--muted); font-size: 13px; }
       .section { margin-top: 28px; }
       .break { break-before: page; page-break-before: always; }
-      .section h2 { margin: 0 0 10px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.06em; color: #111827; }
-      .card { border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
-      .content { font-size: 13px; line-height: 1.6; }
-      .p { margin: 0 0 10px; }
+      .section h2 { margin: 0 0 10px; font-size: 18px; text-transform: uppercase; letter-spacing: 0.06em; color: #111827; }
+      .card { border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+      .content { font-size: 15px; line-height: 1.7; }
+      .p { margin: 0 0 12px; }
       .p:last-child { margin-bottom: 0; }
       .muted { color: var(--muted); }
-      .ul { margin: 6px 0 12px 18px; padding: 0; }
-      .ul li { margin: 4px 0; }
-      .ol { margin: 6px 0 12px 22px; padding: 0; }
-      .ol li { margin: 4px 0; }
-      .h3 { margin: 14px 0 8px; font-size: 14px; letter-spacing: -0.01em; }
-      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.95em; background: #f3f4f6; border: 1px solid #e5e7eb; padding: 1px 4px; border-radius: 6px; }
+      .ul { margin: 6px 0 12px 20px; padding: 0; }
+      .ul li { margin: 5px 0; }
+      .ol { margin: 6px 0 12px 24px; padding: 0; }
+      .ol li { margin: 5px 0; }
+      .h3 { margin: 16px 0 8px; font-size: 15px; letter-spacing: -0.01em; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.97em; background: #f3f4f6; border: 1px solid #e5e7eb; padding: 2px 5px; border-radius: 6px; }
       .cover { border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
       .cover .k { color: var(--muted); font-size: 12px; margin-top: 10px; }
       .divider { height: 1px; background: var(--border); margin: 18px 0; }
