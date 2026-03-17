@@ -83,30 +83,162 @@ async function fetchDependencyManifest(
   return "No dependency manifest detected";
 }
 
-async function fetchEntryFiles(
+const SAFE_SOURCE_CONTEXT_CHARS = Math.min(config.maxFileChars, 40000);
+
+const IGNORED_PATH_SUBSTRINGS: readonly string[] = [
+  "node_modules/",
+  "dist/",
+  "build/",
+  ".next/",
+  "out/",
+  "coverage/",
+  ".git/",
+  "vendor/",
+  "deps/",
+  "third_party/",
+  "target/",
+  "bin/",
+  "obj/",
+  "__pycache__/",
+  "venv/",
+];
+
+const LANGUAGE_EXTENSIONS: Readonly<Record<string, readonly string[]>> = {
+  TypeScript: [".ts", ".tsx"],
+  JavaScript: [".js", ".jsx"],
+  Python: [".py"],
+  Go: [".go"],
+  "C#": [".cs"],
+  Java: [".java"],
+  Kotlin: [".kt", ".kts"],
+  Ruby: [".rb"],
+  PHP: [".php"],
+};
+
+const FALLBACK_EXTENSIONS: readonly string[] = [
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".py",
+  ".go",
+  ".java",
+  ".kt",
+  ".kts",
+  ".rb",
+  ".php",
+  ".cs",
+];
+
+function shouldIgnorePath(path: string): boolean {
+  for (const ignored of IGNORED_PATH_SUBSTRINGS) {
+    if (path.includes(ignored)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getExtensionsForLanguages(languages: Record<string, number>): string[] {
+  const ordered = Object.entries(languages).sort(([, a], [, b]) => b - a);
+  const seenExts = new Set<string>();
+
+  for (const [language] of ordered) {
+    const exts = LANGUAGE_EXTENSIONS[language];
+    if (!exts) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    for (const ext of exts) {
+      if (!seenExts.has(ext)) {
+        seenExts.add(ext);
+      }
+    }
+  }
+
+  if (seenExts.size === 0) {
+    for (const ext of FALLBACK_EXTENSIONS) {
+      seenExts.add(ext);
+    }
+  }
+
+  return Array.from(seenExts);
+}
+
+function scorePath(path: string): number {
+  let score = 0;
+
+  if (path.startsWith("src/")) {
+    score += 5;
+  }
+  if (path.startsWith("lib/") || path.startsWith("app/")) {
+    score += 4;
+  }
+  if (path.includes("/services/") || path.includes("/server/") || path.includes("/api/")) {
+    score += 3;
+  }
+
+  const lower = path.toLowerCase();
+  if (
+    lower.endsWith("index.ts") ||
+    lower.endsWith("index.js") ||
+    lower.endsWith("main.ts") ||
+    lower.endsWith("main.js")
+  ) {
+    score += 4;
+  }
+  if (
+    lower.includes("controller") ||
+    lower.includes("service") ||
+    lower.includes("handler") ||
+    lower.includes("router")
+  ) {
+    score += 2;
+  }
+
+  const depth = path.split("/").length;
+  score += Math.max(0, 4 - depth);
+
+  return score;
+}
+
+function selectSamplePaths(
+  languages: Record<string, number>,
+  fileTree: string[]
+): string[] {
+  const extensions = getExtensionsForLanguages(languages);
+
+  const filtered = fileTree.filter((path) => {
+    if (shouldIgnorePath(path)) {
+      return false;
+    }
+    return extensions.some((ext) => path.endsWith(ext));
+  });
+
+  const scored = filtered
+    .map((path) => ({ path, score: scorePath(path) }))
+    .sort((a, b) => b.score - a.score);
+
+  const maxFiles = 40;
+  return scored.slice(0, maxFiles).map((item) => item.path);
+}
+
+async function fetchSampledSourceFiles(
   octokit: Octokit,
   owner: string,
   repo: string,
-  repoUrl: string
+  repoUrl: string,
+  languages: Record<string, number>,
+  fileTree: string[]
 ): Promise<string> {
-  const candidates = [
-    "src/index.ts",
-    "src/index.js",
-    "src/main.ts",
-    "src/main.js",
-    "index.ts",
-    "index.js",
-    "app.ts",
-    "app.js",
-    "server.ts",
-    "server.js",
-  ];
-
+  const samplePaths = selectSamplePaths(languages, fileTree);
   const parts: string[] = [];
-  let remaining = 12000;
+  let remaining = SAFE_SOURCE_CONTEXT_CHARS;
 
-  for (const path of candidates) {
-    if (remaining <= 0) break;
+  for (const path of samplePaths) {
+    if (remaining <= 0) {
+      break;
+    }
     try {
       type ContentResp = { content?: string; encoding?: string };
       const data = await requestOrThrow<ContentResp>(
@@ -122,11 +254,11 @@ async function fetchEntryFiles(
         remaining -= chunk.length;
       }
     } catch {
-      // Ignore missing files
+      // Ignore individual file failures and continue sampling others
     }
   }
 
-  return truncateToChars(parts.join(""), 12000);
+  return truncateToChars(parts.join(""), SAFE_SOURCE_CONTEXT_CHARS);
 }
 
 async function fetchFileTree(
@@ -151,7 +283,8 @@ async function fetchFileTree(
     repoUrl
   );
 
-  type TreeResponse = { tree: Array<{ path?: string; type?: string }> };
+  type TreeItem = { path?: string; type?: string };
+  type TreeResponse = { tree: TreeItem[] };
   const tree = await requestOrThrow<TreeResponse>(
     octokit,
     "GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
@@ -159,12 +292,13 @@ async function fetchFileTree(
     repoUrl
   );
 
-  const paths = tree.tree
+  const blobItems = tree.tree.filter((t) => t.type === "blob");
+  const paths = blobItems
     .map((t) => t.path)
     .filter((p): p is string => typeof p === "string")
     .slice(0, 500);
 
-  const totalFiles = tree.tree.filter((t) => t.type === "blob").length;
+  const totalFiles = blobItems.length;
   return { fileTree: paths, totalFiles };
 }
 
@@ -190,7 +324,8 @@ export async function fetchRepoContext(repoUrl: string, githubToken?: string): P
     repoUrl
   );
 
-  const languages = await requestOrThrow<Record<string, number>>(
+  type LanguagesResponse = Record<string, number>;
+  const languages = await requestOrThrow<LanguagesResponse>(
     octokit,
     "GET /repos/{owner}/{repo}/languages",
     { owner, repo },
@@ -206,12 +341,20 @@ export async function fetchRepoContext(repoUrl: string, githubToken?: string): P
   );
   const contributorCount = Array.isArray(contributors) ? contributors.length : 0;
 
-  const [{ fileTree, totalFiles }, readme, dependencyManifest, entryFileContents] = await Promise.all([
+  const [{ fileTree, totalFiles }, readme, dependencyManifest] = await Promise.all([
     fetchFileTree(octokit, owner, repo, repoUrl),
     fetchReadme(octokit, owner, repo, repoUrl).catch(() => ""),
     fetchDependencyManifest(octokit, owner, repo, repoUrl).catch(() => "No dependency manifest detected"),
-    fetchEntryFiles(octokit, owner, repo, repoUrl).catch(() => ""),
   ]);
+
+  const entryFileContents = await fetchSampledSourceFiles(
+    octokit,
+    owner,
+    repo,
+    repoUrl,
+    languages,
+    fileTree
+  ).catch(() => "");
 
   const description = repoMeta.description;
   const readmeFinal =
