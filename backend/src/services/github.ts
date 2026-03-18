@@ -3,6 +3,7 @@ import { config } from "../config.js";
 import type { RepoContext } from "../types/index.js";
 import { truncateToChars, coalesceText } from "../utils/truncate.js";
 import { GitHubFetchError, InvalidRepoUrlError } from "../utils/errors.js";
+import { logger } from "../utils/logger.js";
 
 export function parseRepoUrl(url: string): { owner: string; repo: string } {
   const match = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/.*)?$/);
@@ -13,8 +14,9 @@ export function parseRepoUrl(url: string): { owner: string; repo: string } {
 }
 
 function makeOctokit(token?: string): Octokit {
-  if (token) {
-    return new Octokit({ auth: token });
+  const trimmed = token?.trim();
+  if (trimmed) {
+    return new Octokit({ auth: trimmed });
   }
   return new Octokit();
 }
@@ -30,7 +32,15 @@ async function requestOrThrow<T>(
     return resp.data as T;
   } catch (err) {
     const statusCode = typeof (err as { status?: unknown }).status === "number" ? (err as { status: number }).status : 500;
-    const message = err instanceof Error ? err.message : "GitHub request failed";
+    const rawMessage = err instanceof Error ? err.message : "GitHub request failed";
+    let message = rawMessage;
+    if (statusCode === 401) {
+      message = `GitHub authentication failed — the provided token may be invalid or expired. (${rawMessage})`;
+    } else if (statusCode === 403) {
+      message = `GitHub access forbidden — the token may lack the required scopes (ensure 'repo' scope is granted). (${rawMessage})`;
+    } else if (statusCode === 404) {
+      message = `Repository not found — if this is a private repo, ensure a valid GitHub token with 'repo' scope is provided. (${rawMessage})`;
+    }
     throw new GitHubFetchError(repoUrl, statusCode, message);
   }
 }
@@ -250,7 +260,9 @@ async function fetchFileTree(
 
 export async function fetchRepoContext(repoUrl: string, githubToken?: string): Promise<RepoContext> {
   const { owner, repo } = parseRepoUrl(repoUrl);
-  const token = githubToken ?? config.githubToken;
+  const token = githubToken?.trim() || config.githubToken?.trim() || undefined;
+  const tokenSource = githubToken?.trim() ? "user" : (config.githubToken?.trim() ? "env" : "none");
+  logger.info("Fetching repo context", { owner, repo, hasToken: !!token, tokenSource });
   const octokit = makeOctokit(token);
 
   type RepoResponse = {

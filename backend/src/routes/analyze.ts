@@ -33,7 +33,7 @@ analyzeRouter.post(
       return;
     }
 
-    const githubToken = typeof body.githubToken === "string" ? body.githubToken : undefined;
+    const githubToken = typeof body.githubToken === "string" ? body.githubToken.trim() || undefined : undefined;
     let jobId: string;
     try {
       jobId = await createJob(body.repoUrls, githubToken);
