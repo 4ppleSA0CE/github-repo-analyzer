@@ -2,6 +2,8 @@
 
 import { useRef } from "react";
 
+import { Button } from "./ui/Button";
+
 export interface FileUploadProps {
   onUrls: (urls: string[]) => void;
 }
@@ -31,16 +33,12 @@ export function FileUpload({ onUrls }: FileUploadProps) {
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-zinc-900">Upload .txt or .csv</label>
+      <label className="text-sm font-medium text-[var(--app-fg)]">Upload .txt or .csv</label>
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handlePick}
-          className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-900 shadow-sm hover:bg-zinc-50"
-        >
+        <Button variant="secondary" onClick={handlePick}>
           Choose file
-        </button>
-        <span className="text-xs text-zinc-600">One URL per line (or comma-separated)</span>
+        </Button>
+        <span className="text-xs text-[var(--app-muted)]">One URL per line (or comma-separated)</span>
       </div>
       <input
         ref={inputRef}

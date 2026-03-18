@@ -1,6 +1,9 @@
 "use client";
 
 import type { RepoJob } from "../types";
+import { Button } from "./ui/Button";
+import { Card, CardContent } from "./ui/Card";
+import { Badge } from "./ui/Badge";
 
 export interface ReportCardProps {
   repo: RepoJob;
@@ -13,26 +16,27 @@ export function ReportCard({ repo, onDownload }: ReportCardProps) {
     : repo.repoUrl;
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-zinc-900">{title}</div>
-          <div className="mt-1 truncate text-xs text-zinc-600">{repo.repoUrl}</div>
+    <Card>
+      <CardContent className="pt-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="truncate text-sm font-semibold text-[var(--app-fg)]">{title}</div>
+              {repo.status === "done" ? <Badge tone="success">Ready</Badge> : null}
+              {repo.status === "error" ? <Badge tone="danger">Failed</Badge> : null}
+            </div>
+            <div className="mt-1 truncate text-xs text-[var(--app-muted)]">{repo.repoUrl}</div>
+          </div>
+          <Button size="sm" disabled={repo.status !== "done"} onClick={() => onDownload(repo.repoId)}>
+            Download PDF
+          </Button>
         </div>
-        <button
-          type="button"
-          disabled={repo.status !== "done"}
-          onClick={() => onDownload(repo.repoId)}
-          className="shrink-0 rounded-xl bg-zinc-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
-        >
-          Download PDF
-        </button>
-      </div>
 
-      {repo.status === "error" ? (
-        <div className="mt-3 text-xs text-red-700">{repo.error ?? "Unknown error"}</div>
-      ) : null}
-    </div>
+        {repo.status === "error" ? (
+          <div className="mt-3 text-sm text-red-800">{repo.error ?? "Unknown error"}</div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 

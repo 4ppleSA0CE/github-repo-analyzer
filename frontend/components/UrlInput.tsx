@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { Textarea } from "./ui/Textarea";
+
 export interface UrlInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -23,21 +25,22 @@ export function UrlInput({ value, onChange }: UrlInputProps) {
 
   const invalidCount = useMemo(() => urls.filter((u) => !isValidRepoUrl(u)).length, [urls]);
 
+  const error = touched && invalidCount > 0 ? `${invalidCount} invalid URL(s)` : undefined;
+
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-zinc-900">GitHub repo URLs</label>
-      <textarea
+      <label className="text-sm font-medium text-[var(--app-fg)]">GitHub repository URLs</label>
+      <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => setTouched(true)}
         placeholder={"https://github.com/vercel/next.js\nhttps://github.com/octokit/octokit.js"}
-        className="min-h-[160px] w-full resize-y rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none focus:border-zinc-400"
+        error={error}
+        className="min-h-[160px]"
       />
-      <div className="flex items-center justify-between text-xs text-zinc-600">
+      <div className="flex items-center justify-between text-xs text-[var(--app-muted)]">
         <span>{urls.length} repo(s)</span>
-        {touched && invalidCount > 0 ? (
-          <span className="text-red-600">{invalidCount} invalid URL(s)</span>
-        ) : null}
+        <span>One per line</span>
       </div>
     </div>
   );

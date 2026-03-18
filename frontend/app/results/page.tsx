@@ -6,6 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { AnalysisJob, RepoJob } from "../../types";
 import { downloadCombinedReport, downloadReport, pollJobStatus } from "../../lib/api";
 import { ReportCard } from "../../components/ReportCard";
+import { Container } from "../../components/ui/Container";
+import { Button } from "../../components/ui/Button";
+import { Card, CardContent, CardHeader } from "../../components/ui/Card";
+import { Badge } from "../../components/ui/Badge";
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -30,6 +34,7 @@ export default function ResultsPage() {
   const [downloading, setDownloading] = useState(false);
 
   const doneRepos = useMemo(() => job?.repos.filter((r) => r.status === "done") ?? [], [job]);
+  const errorCount = useMemo(() => (job?.repos ?? []).filter((r) => r.status === "error").length, [job]);
 
   useEffect(() => {
     if (!jobId) {
@@ -79,54 +84,46 @@ export default function ResultsPage() {
   const hasErrors = (job?.repos ?? []).some((r) => r.status === "error");
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <main className="mx-auto w-full max-w-4xl px-6 py-12">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Results</h1>
-            <p className="text-sm text-zinc-600">
-              {job ? `${doneRepos.length} report(s) ready` : "Loading…"}
-            </p>
+    <Container>
+      <Card>
+        <CardHeader
+          heading="Results"
+          description={job ? `${doneRepos.length} report(s) ready` : "Loading…"}
+          right={
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" onClick={() => router.push("/")}>
+                New analysis
+              </Button>
+              <Button disabled={!jobId || doneRepos.length === 0 || downloading} onClick={onDownloadCombined}>
+                Download all
+              </Button>
+            </div>
+          }
+        />
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="success">Ready {doneRepos.length}</Badge>
+            {hasErrors ? <Badge tone="danger">Failed {errorCount}</Badge> : null}
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => router.push("/")}
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900 shadow-sm hover:bg-zinc-50"
-            >
-              New analysis
-            </button>
-            <button
-              type="button"
-              disabled={!jobId || doneRepos.length === 0 || downloading}
-              onClick={onDownloadCombined}
-              className="rounded-xl bg-zinc-900 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
-            >
-              Download all (PDF)
-            </button>
-          </div>
-        </div>
+          {error ? (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
+          ) : null}
 
-        {error ? (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        ) : null}
+          {hasErrors ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Some repositories failed. Successful repos are still downloadable below.
+            </div>
+          ) : null}
 
-        {hasErrors ? (
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Some repositories failed. Successful repos are still downloadable below.
+          <div className="mt-6 grid grid-cols-1 gap-4">
+            {(job?.repos ?? []).map((repo: RepoJob) => (
+              <ReportCard key={repo.repoId} repo={repo} onDownload={onDownloadRepo} />
+            ))}
           </div>
-        ) : null}
-
-        <div className="mt-6 grid grid-cols-1 gap-4">
-          {(job?.repos ?? []).map((repo: RepoJob) => (
-            <ReportCard key={repo.repoId} repo={repo} onDownload={onDownloadRepo} />
-          ))}
-        </div>
-      </main>
-    </div>
+        </CardContent>
+      </Card>
+    </Container>
   );
 }
 

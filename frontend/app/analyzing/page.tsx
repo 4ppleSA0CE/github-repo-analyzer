@@ -6,9 +6,26 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { AnalysisJob } from "../../types";
 import { pollJobStatus } from "../../lib/api";
 import { ProgressTable } from "../../components/ProgressTable";
+import { Container } from "../../components/ui/Container";
+import { Card, CardContent, CardHeader } from "../../components/ui/Card";
+import { Badge } from "../../components/ui/Badge";
 
 function isTerminal(job: AnalysisJob): boolean {
   return job.repos.every((r) => r.status === "done" || r.status === "error");
+}
+
+type StatusSummary = { done: number; analyzing: number; fetching: number; queued: number; error: number };
+
+function statusSummary(job: AnalysisJob): StatusSummary {
+  const acc: StatusSummary = { done: 0, analyzing: 0, fetching: 0, queued: 0, error: 0 };
+  for (const r of job.repos) {
+    if (r.status === "done") acc.done += 1;
+    else if (r.status === "analyzing") acc.analyzing += 1;
+    else if (r.status === "fetching") acc.fetching += 1;
+    else if (r.status === "queued") acc.queued += 1;
+    else acc.error += 1;
+  }
+  return acc;
 }
 
 export default function AnalyzingPage() {
@@ -20,6 +37,7 @@ export default function AnalyzingPage() {
   const [error, setError] = useState<string | null>(null);
 
   const done = useMemo(() => (job ? isTerminal(job) : false), [job]);
+  const summary = useMemo(() => (job ? statusSummary(job) : null), [job]);
 
   useEffect(() => {
     if (!jobId) {
@@ -58,26 +76,39 @@ export default function AnalyzingPage() {
   }, [jobId, router]);
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <main className="mx-auto w-full max-w-4xl px-6 py-12">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Analyzing…</h1>
-          <p className="text-sm text-zinc-600">
-            {done ? "Wrapping up…" : "This may take up to a minute per repo."}
-          </p>
-        </div>
+    <Container>
+      <Card>
+        <CardHeader
+          heading="Analyzing"
+          description={done ? "Wrapping up…" : "This can take up to a minute per repository."}
+          right={
+            summary ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {summary.fetching > 0 ? <Badge tone="warning">Fetching {summary.fetching}</Badge> : null}
+                {summary.analyzing > 0 ? <Badge tone="info">Analyzing {summary.analyzing}</Badge> : null}
+                {summary.queued > 0 ? <Badge tone="neutral">Queued {summary.queued}</Badge> : null}
+                {summary.done > 0 ? <Badge tone="success">Done {summary.done}</Badge> : null}
+                {summary.error > 0 ? <Badge tone="danger">Errors {summary.error}</Badge> : null}
+              </div>
+            ) : null
+          }
+        />
+        <CardContent>
+          {error ? (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
+          ) : null}
 
-        {error ? (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="mt-6">
-          {job ? <ProgressTable repos={job.repos} /> : <div className="text-sm text-zinc-600">Loading…</div>}
-        </div>
-      </main>
-    </div>
+          {job ? (
+            <ProgressTable repos={job.repos} />
+          ) : (
+            <div className="space-y-3">
+              <div className="h-4 w-40 rounded bg-[var(--app-surface-2)]" />
+              <div className="h-24 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)]" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </Container>
   );
 }
 
