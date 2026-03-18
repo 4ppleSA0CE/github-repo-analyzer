@@ -26,7 +26,7 @@ export function AppShell({ children }: AppShellProps): ReactElement {
           </Link>
 
           <a
-            href="https://github.com"
+            href="https://github.com/4ppleSA0CE/github-repo-analyzer"
             target="_blank"
             rel="noreferrer"
             className="rounded-md px-2.5 py-1.5 text-xs font-medium text-[var(--app-muted)] transition-colors hover:text-[var(--app-fg)]"
