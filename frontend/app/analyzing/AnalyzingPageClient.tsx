@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -28,7 +29,7 @@ function statusSummary(job: AnalysisJob): StatusSummary {
   return acc;
 }
 
-export function AnalyzingPageClient(): JSX.Element {
+export function AnalyzingPageClient(): ReactElement {
   const router = useRouter();
   const params = useSearchParams();
   const jobId = params.get("jobId");
