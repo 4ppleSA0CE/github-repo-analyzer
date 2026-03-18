@@ -12,7 +12,7 @@ export const config = {
   githubToken: process.env["GITHUB_TOKEN"],
   maxBatchSize: parseInt(process.env["MAX_BATCH_SIZE"] ?? "25", 10),
   maxConcurrentJobs: parseInt(process.env["MAX_CONCURRENT_JOBS"] ?? "3", 10),
-  maxFileChars: parseInt(process.env["MAX_FILE_CHARS"] ?? "50000", 10),
+  maxFileChars: parseInt(process.env["MAX_FILE_CHARS"] ?? "250000", 10),
   corsOrigin: process.env["CORS_ORIGIN"] ?? "http://localhost:3000",
 } as const;
 

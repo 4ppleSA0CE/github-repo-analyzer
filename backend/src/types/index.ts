@@ -13,6 +13,8 @@ export interface RepoContext {
   dependencyManifest: string;
   fileTree: string[];
   totalFiles: number;
+  filesRead: number;
+  filesSkipped: number;
 }
 
 export interface AnalysisResult {

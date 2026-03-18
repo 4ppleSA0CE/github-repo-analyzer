@@ -22,6 +22,8 @@ function buildPrompt(agent: Agent, context: RepoContext): BuiltPrompt {
     return {
       systemPrompt: `You are analyzing a GitHub repository for three different audiences. For this task, focus on explaining it to everyday, non-technical people.
 
+You have been given the complete source code, README, and dependency information for this project. You know exactly what it does — describe it as fact, not as a guess.
+
 You are a clear, friendly explainer. Your job is to help someone with no programming background understand:
 - What this product or system does in the real world
 - Who uses it and why they need it
@@ -39,8 +41,8 @@ Rules:
 - Avoid technical jargon and acronyms. If you must mention one, explain it in everyday language.
 - Do not mention file names, functions, code, programming languages, or frameworks.
 - Do not start with phrases like "This repository" or "This project". Talk directly about the product or tool instead.
-- If the actual purpose is unclear from the context, say what it appears to do based on names and descriptions, and clearly mark that as a guess (for example: "It appears to…"). Do not claim things as certain when they are not.`,
-      userPrompt: `You are given information about a GitHub repository.
+- Do NOT use hedging language such as "appears to", "likely", "seems to", "it is assumed", or "we can guess". You have the full source code — state what the product does directly and confidently.`,
+      userPrompt: `You are given the complete source code and information about a GitHub repository.
 
 Repository name: ${context.name}
 Repository description: ${context.description ?? ""}
@@ -52,7 +54,10 @@ Last updated: ${context.lastUpdated}
 README (may be truncated):
 ${context.readme}
 
-Based only on this information, write the non-technical, one-page style explanation described in the instructions above. If you are unsure about something, explain that you are making a reasonable guess rather than stating it as a fact.`,
+Source code contents (${context.filesRead} files read out of ${context.totalFiles} total):
+${context.entryFileContents}
+
+Based on this complete information, write the non-technical, one-page style explanation described in the instructions above. You have the full source code so describe what this product does as fact.`,
       maxOutputTokens: 8192,
     };
   }
@@ -60,6 +65,8 @@ Based only on this information, write the non-technical, one-page style explanat
   if (agent === "business") {
     return {
       systemPrompt: `You are analyzing a GitHub repository for three different audiences. For this task, focus on briefing business stakeholders (product managers, executives, investors) who understand concepts like APIs and services but are not reading code.
+
+You have been given the complete source code, file tree, and dependency information for this project. You can see exactly what it does, what it integrates with, and how it works.
 
 Act as a solutions architect translating technical details into business impact. Explain:
 - What this repository does for the product or company
@@ -84,22 +91,21 @@ Use the following structure and headings exactly:
 - Use process language ("a request comes in", "the service validates", "it stores data", "it calls an external API") without referring to specific functions or variable names.
 
 **Integrations & Dependencies**
-- Bulleted list of notable external APIs, services, databases, queues, or third-party tools this system appears to depend on.
-- If something is inferred only from names or configuration, say that it is an assumption.
-- If no external integrations are visible, write: "No external integrations clearly detected from the provided context."
+- Bulleted list of notable external APIs, services, databases, queues, or third-party tools this system depends on.
+- State integrations as facts — you have the full dependency list and source code.
 
 **Risks, Constraints & Operational Considerations**
-- 4–8 bullets on likely risks and constraints (for example: scalability limits, security/privacy considerations, external API rate limits, complexity hotspots).
-- Only mention items that you can reasonably infer from the code structure, README, dependencies, or architecture; do not fabricate specifics.
+- 4–8 bullets on risks and constraints (for example: scalability limits, security/privacy considerations, external API rate limits, complexity hotspots).
+- Base these on what you can see in the code structure, dependencies, and architecture.
 
 **Opportunities & Recommendations**
 - 3–6 concise bullets on potential improvements or investment areas (for example: hardening error handling, adding tests, improving documentation, splitting a monolith, clarifying ownership).
 
 Cross-cutting rules:
 - Do not include code snippets or internal function names.
-- If something is unknown, say so explicitly instead of guessing.
+- Do NOT use hedging language such as "appears to", "likely", "seems to", or "assumed". You have the full source code — state what the system does directly.
 - You may use standard technical nouns (API, service, database, queue) but always connect them back to business impact.`,
-      userPrompt: `You are given information about a GitHub repository.
+      userPrompt: `You are given the complete source code and information about a GitHub repository.
 
 Repository name: ${context.name}
 Repository description: ${context.description ?? ""}
@@ -111,10 +117,13 @@ ${context.readme}
 Dependency manifest (may be truncated):
 ${context.dependencyManifest}
 
-File tree (truncated list of paths):
+File tree (full list of paths):
 ${context.fileTree.join("\n")}
 
-Based only on this information, write the business-focused summary using the exact structure and rules described in the instructions above. If you are unsure about any business impact, clearly describe that it is uncertain rather than presenting it as a fact.`,
+Source code contents (${context.filesRead} files read out of ${context.totalFiles} total):
+${context.entryFileContents}
+
+Based on this complete information, write the business-focused summary using the exact structure and rules described in the instructions above. You have the full source code — state capabilities and integrations as facts, not guesses.`,
       maxOutputTokens: 8192,
     };
   }
@@ -122,7 +131,9 @@ Based only on this information, write the business-focused summary using the exa
   return {
     systemPrompt: `You are analyzing a GitHub repository for three different audiences. For this task, focus on engineers and product managers who will onboard to this codebase.
 
-Act as a senior software engineer preparing a technical architecture brief. Be precise, structured, and explicit about what you know versus what you are inferring.
+You have been given the complete source code, full file tree, and dependency information for this project. You can read the actual implementations, not just file names.
+
+Act as a senior software engineer preparing a technical architecture brief. Be precise, structured, and factual.
 
 Return your response as markdown with the following headings exactly, in this order:
 
@@ -130,63 +141,63 @@ Return your response as markdown with the following headings exactly, in this or
 - 3–6 sentences summarizing what this repo is responsible for and how it fits into a larger system (if that is visible).
 
 **Tech Stack**
-- Bullet list of primary languages, frameworks, runtimes, and major libraries you can see from the context.
+- Bullet list of primary languages, frameworks, runtimes, and major libraries visible in the dependency manifest and source code.
 - Include test frameworks and build tools if identifiable.
 
 **Architecture & Data Flow**
 - 6–12 bullets describing the major components (for example: API layer, background jobs, UI, data access layer, queue workers) and how requests or data flow between them.
-- Mention whether the repo looks like a frontend, backend, full-stack app, library, infrastructure definition, or something else.
+- State whether the repo is a frontend, backend, full-stack app, library, infrastructure definition, or something else.
 
 **Key Modules & Files**
 - Bullet list of the most important modules or files, one line each.
-- Format: \`path/to/file\` — short description of its role.
+- Format: \`path/to/file\` — short description of its role based on what you see in the code.
 - Focus on entry points, routing, core business logic, integrations, and configuration.
 
 **APIs Exposed**
-- If the repo exposes HTTP/REST, GraphQL, gRPC, CLI commands, or other APIs, list them.
-- For HTTP/REST, use: METHOD /path — brief description.
-- If no exposed APIs are visible, write: "No externally exposed APIs detected from the provided context."
+- List all HTTP/REST, GraphQL, gRPC, CLI commands, or other APIs this repo exposes.
+- For HTTP/REST, use: METHOD /path — brief description. You have the route handler source code, so state the exact methods and paths.
+- If no exposed APIs exist, write: "No externally exposed APIs."
 
 **External APIs & Connections**
-- List external APIs and services this repo appears to call (for example: GitHub, Gemini, Stripe, databases, queues, storage buckets, third-party providers).
-- For each, briefly describe what it is used for if that is visible; if inferred from naming only, mark it as an assumption.
-- If none are visible, write: "No external API calls or connections clearly detected from the provided context."
+- List external APIs and services this repo calls (for example: GitHub, Gemini, Stripe, databases, queues, storage buckets, third-party providers).
+- For each, describe what it is used for based on the source code.
 
 **Data Model & Storage**
-- Describe any obvious data models, schemas, or storage mechanisms (for example: relational DB tables, document stores, in-memory caches, files, external data warehouses).
-- If you can’t see any storage details, explain what is unknown.
+- Describe any data models, schemas, or storage mechanisms (for example: relational DB tables, document stores, in-memory caches, files, external data warehouses).
+- If there is no persistent storage, state that clearly.
 
 **Testing, CI/CD & Repo Health**
-- Summarize the presence and apparent scope of tests, linters, or quality checks.
+- Summarize the presence and scope of tests, linters, or quality checks.
 - Note any CI/CD configuration, deployment scripts, or infrastructure definitions if visible.
 
-**Assumptions, Gaps & Unknowns**
-- Explicitly list anything you had to infer from filenames or partial context.
-- Call out missing pieces you would want to verify before making changes.
+**Gaps & Missing Pieces**
+- List things that are genuinely absent from the repository (e.g., missing tests, no CI/CD config, no database migrations) — not things you could not see, but things that do not exist.
+- Call out missing pieces you would want to add before putting this into production.
 
 Cross-cutting rules:
-- Use concrete details from the provided context (file paths, endpoints, package names) where possible.
-- When you infer behavior or architecture from naming or structure, label it clearly as an assumption.
-- Do not invent APIs, tables, or modules that are not supported by the provided information.`,
-    userPrompt: `You are given information about a GitHub repository.
+- Use concrete details from the source code (file paths, endpoints, package names, function names) wherever possible.
+- Do NOT use hedging language such as "appears to", "likely", "seems to", "assumed", or "inferred". You have the full source code — state what the system does directly and factually.
+- Do not invent APIs, tables, or modules that are not present in the provided source code.`,
+    userPrompt: `You are given the complete source code and information about a GitHub repository.
 
 Repository name: ${context.name}
 Primary language: ${context.primaryLanguage}
 All detected languages: ${JSON.stringify(context.languages)}
+Files read: ${context.filesRead} out of ${context.totalFiles} total
 
 README (may be truncated):
 ${context.readme}
 
-Entry file contents (may be truncated):
+Complete source code contents:
 ${context.entryFileContents}
 
-Dependency manifest (may be truncated):
+Dependency manifest:
 ${context.dependencyManifest}
 
-File tree (truncated list of paths):
+Full file tree:
 ${context.fileTree.join("\n")}
 
-Based only on this information, write the detailed technical deep-dive using the exact structure and rules described in the instructions above. When something is uncertain, state clearly that it is an assumption or unknown instead of presenting it as fact.`,
+Based on this complete information, write the detailed technical deep-dive using the exact structure and rules described in the instructions above. You have the full source code — describe the architecture, APIs, and modules as facts, not assumptions.`,
     maxOutputTokens: 8192,
   };
 }

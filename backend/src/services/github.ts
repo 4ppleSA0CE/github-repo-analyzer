@@ -83,7 +83,7 @@ async function fetchDependencyManifest(
   return "No dependency manifest detected";
 }
 
-const SAFE_SOURCE_CONTEXT_CHARS = Math.min(config.maxFileChars, 40000);
+const SAFE_SOURCE_CONTEXT_CHARS = Math.min(config.maxFileChars, 200000);
 
 const IGNORED_PATH_SUBSTRINGS: readonly string[] = [
   "node_modules/",
@@ -101,33 +101,19 @@ const IGNORED_PATH_SUBSTRINGS: readonly string[] = [
   "obj/",
   "__pycache__/",
   "venv/",
+  ".vercel/",
+  ".cache/",
 ];
 
-const LANGUAGE_EXTENSIONS: Readonly<Record<string, readonly string[]>> = {
-  TypeScript: [".ts", ".tsx"],
-  JavaScript: [".js", ".jsx"],
-  Python: [".py"],
-  Go: [".go"],
-  "C#": [".cs"],
-  Java: [".java"],
-  Kotlin: [".kt", ".kts"],
-  Ruby: [".rb"],
-  PHP: [".php"],
-};
-
-const FALLBACK_EXTENSIONS: readonly string[] = [
-  ".ts",
-  ".tsx",
-  ".js",
-  ".jsx",
-  ".py",
-  ".go",
-  ".java",
-  ".kt",
-  ".kts",
-  ".rb",
-  ".php",
-  ".cs",
+/** Extensions that are never useful source context (binary, generated, assets). */
+const SKIPPED_EXTENSIONS: readonly string[] = [
+  ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".avif",
+  ".woff", ".woff2", ".ttf", ".eot", ".otf",
+  ".map", ".lock",
+  ".pdf", ".zip", ".tar", ".gz", ".bz2",
+  ".mp3", ".mp4", ".wav", ".ogg", ".webm",
+  ".min.js", ".min.css",
+  ".d.ts",
 ];
 
 function shouldIgnorePath(path: string): boolean {
@@ -139,108 +125,44 @@ function shouldIgnorePath(path: string): boolean {
   return false;
 }
 
-function getExtensionsForLanguages(languages: Record<string, number>): string[] {
-  const ordered = Object.entries(languages).sort(([, a], [, b]) => b - a);
-  const seenExts = new Set<string>();
-
-  for (const [language] of ordered) {
-    const exts = LANGUAGE_EXTENSIONS[language];
-    if (!exts) {
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-    for (const ext of exts) {
-      if (!seenExts.has(ext)) {
-        seenExts.add(ext);
-      }
-    }
-  }
-
-  if (seenExts.size === 0) {
-    for (const ext of FALLBACK_EXTENSIONS) {
-      seenExts.add(ext);
-    }
-  }
-
-  return Array.from(seenExts);
-}
-
-function scorePath(path: string): number {
-  let score = 0;
-
-  if (path.startsWith("src/")) {
-    score += 5;
-  }
-  if (path.startsWith("lib/") || path.startsWith("app/")) {
-    score += 4;
-  }
-  if (path.includes("/services/") || path.includes("/server/") || path.includes("/api/")) {
-    score += 3;
-  }
-
+function shouldSkipExtension(path: string): boolean {
   const lower = path.toLowerCase();
-  if (
-    lower.endsWith("index.ts") ||
-    lower.endsWith("index.js") ||
-    lower.endsWith("main.ts") ||
-    lower.endsWith("main.js")
-  ) {
-    score += 4;
-  }
-  if (
-    lower.includes("controller") ||
-    lower.includes("service") ||
-    lower.includes("handler") ||
-    lower.includes("router")
-  ) {
-    score += 2;
-  }
-
-  const depth = path.split("/").length;
-  score += Math.max(0, 4 - depth);
-
-  return score;
-}
-
-function selectSamplePaths(
-  languages: Record<string, number>,
-  fileTree: string[]
-): string[] {
-  const extensions = getExtensionsForLanguages(languages);
-
-  const filtered = fileTree.filter((path) => {
-    if (shouldIgnorePath(path)) {
-      return false;
+  for (const ext of SKIPPED_EXTENSIONS) {
+    if (lower.endsWith(ext)) {
+      return true;
     }
-    return extensions.some((ext) => path.endsWith(ext));
-  });
-
-  const scored = filtered
-    .map((path) => ({ path, score: scorePath(path) }))
-    .sort((a, b) => b.score - a.score);
-
-  const maxFiles = 40;
-  return scored.slice(0, maxFiles).map((item) => item.path);
+  }
+  return false;
 }
 
-async function fetchSampledSourceFiles(
+function getSourcePaths(fileTree: string[]): string[] {
+  return fileTree.filter((path) => {
+    if (shouldIgnorePath(path)) return false;
+    if (shouldSkipExtension(path)) return false;
+    return true;
+  });
+}
+
+async function fetchAllSourceFiles(
   octokit: Octokit,
   owner: string,
   repo: string,
   repoUrl: string,
-  languages: Record<string, number>,
   fileTree: string[]
-): Promise<string> {
-  const samplePaths = selectSamplePaths(languages, fileTree);
+): Promise<{ content: string; filesRead: number; filesSkipped: number }> {
+  const sourcePaths = getSourcePaths(fileTree);
   const parts: string[] = [];
   let remaining = SAFE_SOURCE_CONTEXT_CHARS;
+  let filesRead = 0;
+  let filesSkipped = fileTree.length - sourcePaths.length;
 
-  for (const path of samplePaths) {
+  for (const path of sourcePaths) {
     if (remaining <= 0) {
-      break;
+      filesSkipped += 1;
+      continue;
     }
     try {
-      type ContentResp = { content?: string; encoding?: string };
+      type ContentResp = { content?: string; encoding?: string; size?: number };
       const data = await requestOrThrow<ContentResp>(
         octokit,
         "GET /repos/{owner}/{repo}/contents/{path}",
@@ -252,13 +174,20 @@ async function fetchSampledSourceFiles(
         const chunk = truncateToChars(decoded, Math.min(remaining, config.maxFileChars));
         parts.push(`\n\n--- ${path} ---\n${chunk}`);
         remaining -= chunk.length;
+        filesRead += 1;
+      } else {
+        filesSkipped += 1;
       }
     } catch {
-      // Ignore individual file failures and continue sampling others
+      filesSkipped += 1;
     }
   }
 
-  return truncateToChars(parts.join(""), SAFE_SOURCE_CONTEXT_CHARS);
+  return {
+    content: truncateToChars(parts.join(""), SAFE_SOURCE_CONTEXT_CHARS),
+    filesRead,
+    filesSkipped,
+  };
 }
 
 async function fetchFileTree(
@@ -284,7 +213,7 @@ async function fetchFileTree(
   );
 
   type TreeItem = { path?: string; type?: string };
-  type TreeResponse = { tree: TreeItem[] };
+  type TreeResponse = { tree: TreeItem[]; truncated?: boolean };
   const tree = await requestOrThrow<TreeResponse>(
     octokit,
     "GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
@@ -295,8 +224,7 @@ async function fetchFileTree(
   const blobItems = tree.tree.filter((t) => t.type === "blob");
   const paths = blobItems
     .map((t) => t.path)
-    .filter((p): p is string => typeof p === "string")
-    .slice(0, 500);
+    .filter((p): p is string => typeof p === "string");
 
   const totalFiles = blobItems.length;
   return { fileTree: paths, totalFiles };
@@ -347,14 +275,13 @@ export async function fetchRepoContext(repoUrl: string, githubToken?: string): P
     fetchDependencyManifest(octokit, owner, repo, repoUrl).catch(() => "No dependency manifest detected"),
   ]);
 
-  const entryFileContents = await fetchSampledSourceFiles(
+  const { content: entryFileContents, filesRead, filesSkipped } = await fetchAllSourceFiles(
     octokit,
     owner,
     repo,
     repoUrl,
-    languages,
     fileTree
-  ).catch(() => "");
+  ).catch(() => ({ content: "", filesRead: 0, filesSkipped: fileTree.length }));
 
   const description = repoMeta.description;
   const readmeFinal =
@@ -374,10 +301,12 @@ export async function fetchRepoContext(repoUrl: string, githubToken?: string): P
     lastUpdated: repoMeta.updated_at,
     contributorCount,
     readme: truncateToChars(readmeFinal, Math.min(config.maxFileChars, 8000)),
-    entryFileContents: truncateToChars(entryFileContents, 12000),
+    entryFileContents: truncateToChars(entryFileContents, SAFE_SOURCE_CONTEXT_CHARS),
     dependencyManifest: truncateToChars(dependencyManifest, 3000),
     fileTree,
     totalFiles,
+    filesRead,
+    filesSkipped,
   };
 }
 
