@@ -20,7 +20,10 @@ export function Card({ className, children, ...props }: CardProps): ReactElement
   return (
     <div
       {...props}
-      className={cx(["rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-sm", className])}
+      className={cx([
+        "rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-sm shadow-black/[0.03] dark:shadow-none",
+        className,
+      ])}
     >
       {children}
     </div>
@@ -29,10 +32,10 @@ export function Card({ className, children, ...props }: CardProps): ReactElement
 
 export function CardHeader({ heading, description, right, className, ...props }: CardHeaderProps): ReactElement {
   return (
-    <div {...props} className={cx(["flex items-start justify-between gap-4 p-5", className])}>
+    <div {...props} className={cx(["flex items-start justify-between gap-4 px-6 pt-6 pb-2", className])}>
       <div className="min-w-0">
-        <div className="text-sm font-semibold tracking-tight text-[var(--app-fg)]">{heading}</div>
-        {description ? <div className="mt-1 text-sm text-[var(--app-muted)]">{description}</div> : null}
+        <h2 className="text-base font-semibold tracking-tight text-[var(--app-fg)]">{heading}</h2>
+        {description ? <p className="mt-1 text-sm text-[var(--app-muted)]">{description}</p> : null}
       </div>
       {right ? <div className="shrink-0">{right}</div> : null}
     </div>
@@ -45,9 +48,8 @@ export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {
 
 export function CardContent({ className, children, ...props }: CardContentProps): ReactElement {
   return (
-    <div {...props} className={cx(["px-5 pb-5", className])}>
+    <div {...props} className={cx(["px-6 pb-6 pt-4", className])}>
       {children}
     </div>
   );
 }
-

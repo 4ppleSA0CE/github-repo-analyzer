@@ -29,14 +29,14 @@ export function UrlInput({ value, onChange }: UrlInputProps) {
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-[var(--app-fg)]">GitHub repository URLs</label>
+      <label className="text-sm font-medium text-[var(--app-fg)]">Repository URLs</label>
       <Textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => setTouched(true)}
-        placeholder={"https://github.com/vercel/next.js\nhttps://github.com/octokit/octokit.js"}
+        placeholder={"https://github.com/vercel/next.js\nhttps://github.com/facebook/react"}
         error={error}
-        className="min-h-[160px]"
+        className="min-h-[120px] font-[family-name:var(--font-mono)] text-[13px]"
       />
       <div className="flex items-center justify-between text-xs text-[var(--app-muted)]">
         <span>{urls.length} repo(s)</span>
@@ -45,4 +45,3 @@ export function UrlInput({ value, onChange }: UrlInputProps) {
     </div>
   );
 }
-

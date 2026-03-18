@@ -2,8 +2,6 @@
 
 import { useRef } from "react";
 
-import { Button } from "./ui/Button";
-
 export interface FileUploadProps {
   onUrls: (urls: string[]) => void;
 }
@@ -32,14 +30,20 @@ export function FileUpload({ onUrls }: FileUploadProps) {
   };
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-[var(--app-fg)]">Upload .txt or .csv</label>
-      <div className="flex items-center gap-3">
-        <Button variant="secondary" onClick={handlePick}>
-          Choose file
-        </Button>
-        <span className="text-xs text-[var(--app-muted)]">One URL per line (or comma-separated)</span>
-      </div>
+    <div className="space-y-3">
+      <label className="text-sm font-medium text-[var(--app-fg)]">Upload a file</label>
+      <button
+        type="button"
+        onClick={handlePick}
+        className="group flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-[var(--app-border)] px-4 py-10 text-sm text-[var(--app-muted)] transition-all duration-200 hover:border-[var(--accent)]/35 hover:bg-[var(--accent-subtle)] hover:text-[var(--app-fg)]"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-200 group-hover:-translate-y-0.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        Drop a .txt or .csv — one URL per line
+      </button>
       <input
         ref={inputRef}
         type="file"
@@ -54,4 +58,3 @@ export function FileUpload({ onUrls }: FileUploadProps) {
     </div>
   );
 }
-

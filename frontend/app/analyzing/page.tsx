@@ -7,7 +7,7 @@ import type { AnalysisJob } from "../../types";
 import { pollJobStatus } from "../../lib/api";
 import { ProgressTable } from "../../components/ProgressTable";
 import { Container } from "../../components/ui/Container";
-import { Card, CardContent, CardHeader } from "../../components/ui/Card";
+import { Card, CardContent } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 
 function isTerminal(job: AnalysisJob): boolean {
@@ -77,38 +77,53 @@ export default function AnalyzingPage() {
 
   return (
     <Container>
-      <Card>
-        <CardHeader
-          heading="Analyzing"
-          description={done ? "Wrapping up…" : "This can take up to a minute per repository."}
-          right={
-            summary ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {summary.fetching > 0 ? <Badge tone="warning">Fetching {summary.fetching}</Badge> : null}
-                {summary.analyzing > 0 ? <Badge tone="info">Analyzing {summary.analyzing}</Badge> : null}
-                {summary.queued > 0 ? <Badge tone="neutral">Queued {summary.queued}</Badge> : null}
-                {summary.done > 0 ? <Badge tone="success">Done {summary.done}</Badge> : null}
-                {summary.error > 0 ? <Badge tone="danger">Errors {summary.error}</Badge> : null}
+      <div className="animate-fade-in mx-auto max-w-xl">
+        <Card>
+          <CardContent className="pt-6">
+            {/* Spinner + heading */}
+            <div className="flex flex-col items-center gap-4 pb-6">
+              <div className="relative h-10 w-10">
+                <div className="absolute inset-0 rounded-full border-2 border-[var(--app-border)]" />
+                <div className="animate-spin-slow absolute inset-0 rounded-full border-2 border-transparent border-t-[var(--accent)]" />
               </div>
-            ) : null
-          }
-        />
-        <CardContent>
-          {error ? (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
-          ) : null}
-
-          {job ? (
-            <ProgressTable repos={job.repos} />
-          ) : (
-            <div className="space-y-3">
-              <div className="h-4 w-40 rounded bg-[var(--app-surface-2)]" />
-              <div className="h-24 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)]" />
+              <div className="text-center">
+                <h1 className="text-lg font-bold text-[var(--app-fg)]">
+                  {done ? "Wrapping up…" : "Analyzing"}
+                </h1>
+                <p className="mt-1 text-sm text-[var(--app-muted)]">
+                  This can take up to a minute per repository.
+                </p>
+              </div>
+              {summary ? (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {summary.fetching > 0 ? <Badge tone="warning">Fetching {summary.fetching}</Badge> : null}
+                  {summary.analyzing > 0 ? <Badge tone="info">Analyzing {summary.analyzing}</Badge> : null}
+                  {summary.queued > 0 ? <Badge tone="neutral">Queued {summary.queued}</Badge> : null}
+                  {summary.done > 0 ? <Badge tone="success">Done {summary.done}</Badge> : null}
+                  {summary.error > 0 ? <Badge tone="danger">Errors {summary.error}</Badge> : null}
+                </div>
+              ) : null}
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* Error */}
+            {error ? (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800/30 dark:bg-red-950/25 dark:text-red-400">
+                {error}
+              </div>
+            ) : null}
+
+            {/* Progress list */}
+            {job ? (
+              <ProgressTable repos={job.repos} />
+            ) : (
+              <div className="space-y-3">
+                <div className="h-4 w-32 rounded-md bg-[var(--app-surface-2)]" />
+                <div className="h-14 rounded-lg bg-[var(--app-surface-2)]" />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </Container>
   );
 }
-

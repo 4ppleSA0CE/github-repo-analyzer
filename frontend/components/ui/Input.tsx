@@ -16,13 +16,12 @@ export function Input({ className, error, ...props }: InputProps): ReactElement 
       <input
         {...props}
         className={cx([
-          "h-10 w-full rounded-lg border bg-[var(--app-surface)] px-3 text-sm text-[var(--app-fg)] shadow-sm outline-none transition-colors placeholder:text-[color:var(--app-muted)/0.9] focus:border-[color:var(--app-fg)/0.25] focus:ring-2 focus:ring-[color:var(--app-fg)/0.08]",
-          error ? "border-red-300 focus:border-red-300 focus:ring-red-200/40" : "border-[var(--app-border)]",
+          "h-10 w-full rounded-lg border bg-[var(--app-surface)] px-3 text-sm text-[var(--app-fg)] outline-none transition-all duration-150 placeholder:text-[var(--app-muted)]/50 focus:border-[var(--accent)]/40 focus:ring-2 focus:ring-[var(--accent)]/8",
+          error ? "border-red-300 focus:border-red-400 focus:ring-red-200/20" : "border-[var(--app-border)]",
           className,
         ])}
       />
-      {error ? <div className="text-xs text-red-700">{error}</div> : null}
+      {error ? <div className="text-xs text-red-600 dark:text-red-400">{error}</div> : null}
     </div>
   );
 }
-

@@ -25,28 +25,16 @@ function statusTone(status: RepoJob["status"]): "neutral" | "success" | "warning
 
 export function ProgressTable({ repos }: ProgressTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)]">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-[var(--app-surface-2)] text-xs text-[var(--app-muted)]">
-          <tr>
-            <th className="px-4 py-3 font-medium">Repository</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium">Error</th>
-          </tr>
-        </thead>
-        <tbody>
-          {repos.map((r) => (
-            <tr key={r.repoId} className="border-t border-[color:var(--app-border)/0.6]">
-              <td className="px-4 py-3 font-medium text-[var(--app-fg)]">{r.repoUrl}</td>
-              <td className="px-4 py-3">
-                <Badge tone={statusTone(r.status)}>{statusLabel(r.status)}</Badge>
-              </td>
-              <td className="px-4 py-3 text-xs text-[var(--app-muted)]">{r.error ?? ""}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="divide-y divide-[var(--app-border)]">
+      {repos.map((r) => (
+        <div key={r.repoId} className="flex items-center justify-between gap-3 py-3">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium text-[var(--app-fg)]">{r.repoUrl}</div>
+            {r.error ? <div className="mt-0.5 truncate text-xs text-red-600 dark:text-red-400">{r.error}</div> : null}
+          </div>
+          <Badge tone={statusTone(r.status)}>{statusLabel(r.status)}</Badge>
+        </div>
+      ))}
     </div>
   );
 }
-

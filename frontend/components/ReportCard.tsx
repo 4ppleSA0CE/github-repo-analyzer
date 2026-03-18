@@ -2,7 +2,6 @@
 
 import type { RepoJob } from "../types";
 import { Button } from "./ui/Button";
-import { Card, CardContent } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 
 export interface ReportCardProps {
@@ -16,27 +15,20 @@ export function ReportCard({ repo, onDownload }: ReportCardProps) {
     : repo.repoUrl;
 
   return (
-    <Card>
-      <CardContent className="pt-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="truncate text-sm font-semibold text-[var(--app-fg)]">{title}</div>
-              {repo.status === "done" ? <Badge tone="success">Ready</Badge> : null}
-              {repo.status === "error" ? <Badge tone="danger">Failed</Badge> : null}
-            </div>
-            <div className="mt-1 truncate text-xs text-[var(--app-muted)]">{repo.repoUrl}</div>
-          </div>
-          <Button size="sm" disabled={repo.status !== "done"} onClick={() => onDownload(repo.repoId)}>
-            Download PDF
-          </Button>
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-5 py-4">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-medium text-[var(--app-fg)]">{title}</span>
+          {repo.status === "done" ? <Badge tone="success">Ready</Badge> : null}
+          {repo.status === "error" ? <Badge tone="danger">Failed</Badge> : null}
         </div>
-
-        {repo.status === "error" ? (
-          <div className="mt-3 text-sm text-red-800">{repo.error ?? "Unknown error"}</div>
+        {repo.status === "error" && repo.error ? (
+          <div className="mt-1 text-xs text-red-600 dark:text-red-400">{repo.error}</div>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+      <Button size="sm" variant="secondary" disabled={repo.status !== "done"} onClick={() => onDownload(repo.repoId)}>
+        Download
+      </Button>
+    </div>
   );
 }
-

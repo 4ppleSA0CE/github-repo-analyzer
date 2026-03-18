@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "../components/AppShell";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const heading = Bricolage_Grotesque({
+  variable: "--font-heading",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const body = DM_Sans({
+  variable: "--font-body",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const mono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${heading.variable} ${body.variable} ${mono.variable} antialiased`}>
         <AppShell>{children}</AppShell>
       </body>
     </html>
