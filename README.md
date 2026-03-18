@@ -120,8 +120,6 @@ A full-stack web application that analyzes GitHub repositories using the **GitHu
 │   ├── tsconfig.json
 │   └── package.json
 │
-├── PRD_GitHub_Repo_Analyzer.md   # Product requirements document
-├── CLAUDE.md                     # AI coding agent instructions
 └── README.md                     # ← You are here
 ```
 
@@ -314,9 +312,3 @@ Provide a GitHub Personal Access Token with the `repo` scope either:
 4. Railway auto-detects Node.js and provides a public HTTPS URL.
 
 > **Note:** Puppeteer requires `--no-sandbox` to run on Railway, which is already configured in the codebase.
-
----
-
-## License
-
-ISC
