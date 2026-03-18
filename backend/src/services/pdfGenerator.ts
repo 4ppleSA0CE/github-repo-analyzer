@@ -106,77 +106,66 @@ function renderMarkdownLite(text: string): string {
 function renderHtml(result: AnalysisResult): string {
   const { repoContext } = result;
   const title = `${repoContext.owner}/${repoContext.name}`;
-  const metaLine = [
-    repoContext.primaryLanguage ? `Primary language: ${repoContext.primaryLanguage}` : "",
-    `Stars: ${repoContext.stars}`,
-    `Forks: ${repoContext.forks}`,
-    `Contributors: ${repoContext.contributorCount}`,
-    `Last updated: ${repoContext.lastUpdated}`,
-  ]
-    .filter((s) => s.length > 0)
-    .join(" • ");
+
+  const primaryLanguageLine =
+    repoContext.primaryLanguage !== null && repoContext.primaryLanguage !== ""
+      ? `<p class="subtitle">Primary language: ${escapeHtml(repoContext.primaryLanguage)}</p>`
+      : "";
 
   return `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <style>
-      :root { --text: #111827; --muted: #6b7280; --border: #e5e7eb; --bg: #ffffff; }
+      :root { --text: #111827; --muted: #6b7280; --bg: #ffffff; }
       * { box-sizing: border-box; }
-      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: var(--text); background: var(--bg); font-size: 15px; }
-      .page { padding: 40px 48px 56px; }
-      h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: -0.02em; }
-      .meta { margin: 0 0 24px; color: var(--muted); font-size: 13px; }
-      .section { margin-top: 28px; }
+      body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--text); background: var(--bg); font-size: 12pt; line-height: 1.5; }
+      .document { max-width: 100%; padding: 0; }
+      .title-block { margin-bottom: 28px; }
+      .title-block h1 { margin: 0 0 12px; font-size: 22pt; font-weight: bold; text-align: center; letter-spacing: -0.02em; }
+      .subtitle { margin: 0 0 8px; color: var(--muted); font-size: 10pt; text-align: center; }
+      .section { margin-top: 24px; }
+      .section .section-heading { margin: 0 0 12px; font-size: 14pt; font-weight: bold; color: var(--text); }
+      .section .body { font-size: 12pt; line-height: 1.5; }
       .break { break-before: page; page-break-before: always; }
-      .section h2 { margin: 0 0 10px; font-size: 18px; text-transform: uppercase; letter-spacing: 0.06em; color: #111827; }
-      .card { border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
-      .content { font-size: 15px; line-height: 1.7; }
       .p { margin: 0 0 12px; }
       .p:last-child { margin-bottom: 0; }
       .muted { color: var(--muted); }
-      .ul { margin: 6px 0 12px 20px; padding: 0; }
+      .ul { margin: 6px 0 12px 24px; padding: 0; }
       .ul li { margin: 5px 0; }
       .ol { margin: 6px 0 12px 24px; padding: 0; }
       .ol li { margin: 5px 0; }
-      .h3 { margin: 16px 0 8px; font-size: 15px; letter-spacing: -0.01em; }
-      code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.97em; background: #f3f4f6; border: 1px solid #e5e7eb; padding: 2px 5px; border-radius: 6px; }
-      .cover { border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
-      .cover .k { color: var(--muted); font-size: 12px; margin-top: 10px; }
-      .divider { height: 1px; background: var(--border); margin: 18px 0; }
+      .h3 { margin: 14px 0 6px; font-size: 12pt; font-weight: bold; }
+      code { font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.95em; background: #f3f4f6; padding: 1px 4px; }
     </style>
   </head>
   <body>
-    <div class="page">
-      <div class="cover">
+    <div class="document">
+      <div class="title-block">
         <h1>${escapeHtml(title)}</h1>
-        <div class="meta">${escapeHtml(metaLine)}</div>
-        <div class="divider"></div>
-        <div class="k">Source</div>
-        <div class="content"><p class="p">${escapeHtml(result.repoUrl)}</p></div>
+        <p class="subtitle">${escapeHtml(result.repoUrl)}</p>
         ${
           repoContext.description
-            ? `<div class="k">Description</div><div class="content"><p class="p">${escapeHtml(repoContext.description)}</p></div>`
+            ? `<p class="subtitle" style="text-align: left; margin-bottom: 12px;">${escapeHtml(repoContext.description)}</p>`
             : ""
         }
-        <div class="k">Generated at</div>
-        <div class="content"><p class="p muted">${escapeHtml(result.generatedAt)}</p></div>
+        ${primaryLanguageLine}
       </div>
 
-      <div class="section">
-        <h2>Point 1 — Plain English Summary</h2>
-        <div class="card"><div class="content">${renderPlainParagraphs(result.laymanSummary)}</div></div>
-      </div>
+      <section class="section">
+        <h2 class="section-heading">1. Plain English Summary</h2>
+        <div class="body">${renderPlainParagraphs(result.laymanSummary)}</div>
+      </section>
 
-      <div class="section break">
-        <h2>Point 2 — Business / Functional Summary</h2>
-        <div class="card"><div class="content">${renderMarkdownLite(result.businessSummary)}</div></div>
-      </div>
+      <section class="section break">
+        <h2 class="section-heading">2. Business / Functional Summary</h2>
+        <div class="body">${renderMarkdownLite(result.businessSummary)}</div>
+      </section>
 
-      <div class="section break">
-        <h2>Point 3 — Technical Deep-Dive</h2>
-        <div class="card"><div class="content">${renderMarkdownLite(result.engineerSummary)}</div></div>
-      </div>
+      <section class="section break">
+        <h2 class="section-heading">3. Technical Deep-Dive</h2>
+        <div class="body">${renderMarkdownLite(result.engineerSummary)}</div>
+      </section>
     </div>
   </body>
 </html>`;
@@ -195,9 +184,9 @@ export async function generateRepoPdf(result: AnalysisResult): Promise<Buffer> {
       format: "A4",
       printBackground: true,
       displayHeaderFooter: true,
-      margin: { top: "32px", bottom: "48px", left: "0px", right: "0px" },
-      headerTemplate: `<div style="font-size:10px; color:#6b7280; width:100%; padding:0 56px;"></div>`,
-      footerTemplate: `<div style="font-size:10px; color:#6b7280; width:100%; padding:0 56px; display:flex; justify-content:space-between;">
+      margin: { top: "25mm", bottom: "25mm", left: "20mm", right: "20mm" },
+      headerTemplate: `<div style="font-size:10px; color:#6b7280; width:100%; padding:0 20mm;"></div>`,
+      footerTemplate: `<div style="font-size:10px; color:#6b7280; width:100%; padding:0 20mm; display:flex; justify-content:space-between;">
         <span>${escapeHtml(result.repoContext.owner)}/${escapeHtml(result.repoContext.name)}</span>
         <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
       </div>`,

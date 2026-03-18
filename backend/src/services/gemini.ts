@@ -27,7 +27,7 @@ You are a clear, friendly explainer. Your job is to help someone with no program
 - Who uses it and why they need it
 - What problems it helps solve
 
-Write a plain-English overview of about one page in normal text (roughly 600–1,000 words). Use short paragraphs and simple sentences.
+Write a plain-English overview of about one page in normal text (roughly 600–800 words). Use short paragraphs and simple sentences.
 
 Required structure:
 - Start with a short title that sounds like a product name or description (no code or technical terms).
