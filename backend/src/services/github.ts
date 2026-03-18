@@ -5,12 +5,13 @@ import { truncateToChars, coalesceText } from "../utils/truncate.js";
 import { GitHubFetchError, InvalidRepoUrlError } from "../utils/errors.js";
 import { logger } from "../utils/logger.js";
 
-export function parseRepoUrl(url: string): { owner: string; repo: string } {
-  const match = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/.*)?$/);
+export function parseRepoUrl(url: string): { owner: string; repo: string; ref?: string } {
+  const match = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/(?:tree|blob)\/(.+?))?\/?$/);
   if (!match?.[1] || !match?.[2]) {
     throw new InvalidRepoUrlError(url);
   }
-  return { owner: match[1], repo: match[2] };
+  const ref = match[3] || undefined;
+  return ref ? { owner: match[1], repo: match[2], ref } : { owner: match[1], repo: match[2] };
 }
 
 function makeOctokit(token?: string): Octokit {
@@ -49,13 +50,16 @@ async function fetchReadme(
   octokit: Octokit,
   owner: string,
   repo: string,
-  repoUrl: string
+  repoUrl: string,
+  ref?: string
 ): Promise<string> {
   type ReadmeResponse = { content?: string; encoding?: string };
+  const params: Record<string, unknown> = { owner, repo };
+  if (ref) params.ref = ref;
   const data = await requestOrThrow<ReadmeResponse>(
     octokit,
     "GET /repos/{owner}/{repo}/readme",
-    { owner, repo },
+    params,
     repoUrl
   );
 
@@ -70,16 +74,19 @@ async function fetchDependencyManifest(
   octokit: Octokit,
   owner: string,
   repo: string,
-  repoUrl: string
+  repoUrl: string,
+  ref?: string
 ): Promise<string> {
   const candidates = ["package.json", "requirements.txt", "go.mod", "pyproject.toml"];
   for (const path of candidates) {
     try {
       type ContentResp = { content?: string; encoding?: string };
+      const params: Record<string, unknown> = { owner, repo, path };
+      if (ref) params.ref = ref;
       const data = await requestOrThrow<ContentResp>(
         octokit,
         "GET /repos/{owner}/{repo}/contents/{path}",
-        { owner, repo, path },
+        params,
         repoUrl
       );
       if (data.content && data.encoding === "base64") {
@@ -160,7 +167,8 @@ async function fetchAllSourceFiles(
   owner: string,
   repo: string,
   repoUrl: string,
-  fileTree: string[]
+  fileTree: string[],
+  ref?: string
 ): Promise<{ content: string; filesRead: number; filesSkipped: number }> {
   const sourcePaths = getSourcePaths(fileTree);
   const parts: string[] = [];
@@ -179,10 +187,12 @@ async function fetchAllSourceFiles(
     const results = await Promise.allSettled(
       batch.map(async (path) => {
         type ContentResp = { content?: string; encoding?: string; size?: number };
+        const params: Record<string, unknown> = { owner, repo, path };
+        if (ref) params.ref = ref;
         const data = await requestOrThrow<ContentResp>(
           octokit,
           "GET /repos/{owner}/{repo}/contents/{path}",
-          { owner, repo, path },
+          params,
           repoUrl
         );
         return { path, data };
@@ -222,21 +232,27 @@ async function fetchFileTree(
   octokit: Octokit,
   owner: string,
   repo: string,
-  repoUrl: string
+  repoUrl: string,
+  ref?: string
 ): Promise<{ fileTree: string[]; totalFiles: number }> {
-  type RepoResponse = { default_branch: string };
-  const repoMeta = await requestOrThrow<RepoResponse>(
-    octokit,
-    "GET /repos/{owner}/{repo}",
-    { owner, repo },
-    repoUrl
-  );
+  // Resolve the target ref: use the explicit ref from the URL, or fall back to the default branch
+  let targetRef = ref;
+  if (!targetRef) {
+    type RepoResponse = { default_branch: string };
+    const repoMeta = await requestOrThrow<RepoResponse>(
+      octokit,
+      "GET /repos/{owner}/{repo}",
+      { owner, repo },
+      repoUrl
+    );
+    targetRef = repoMeta.default_branch;
+  }
 
   type BranchResponse = { commit: { sha: string } };
   const branch = await requestOrThrow<BranchResponse>(
     octokit,
     "GET /repos/{owner}/{repo}/branches/{branch}",
-    { owner, repo, branch: repoMeta.default_branch },
+    { owner, repo, branch: targetRef },
     repoUrl
   );
 
@@ -259,10 +275,10 @@ async function fetchFileTree(
 }
 
 export async function fetchRepoContext(repoUrl: string, githubToken?: string): Promise<RepoContext> {
-  const { owner, repo } = parseRepoUrl(repoUrl);
+  const { owner, repo, ref } = parseRepoUrl(repoUrl);
   const token = githubToken?.trim() || config.githubToken?.trim() || undefined;
   const tokenSource = githubToken?.trim() ? "user" : (config.githubToken?.trim() ? "env" : "none");
-  logger.info("Fetching repo context", { owner, repo, hasToken: !!token, tokenSource });
+  logger.info("Fetching repo context", { owner, repo, ref: ref ?? "(default)", hasToken: !!token, tokenSource });
   const octokit = makeOctokit(token);
 
   type RepoResponse = {
@@ -300,9 +316,9 @@ export async function fetchRepoContext(repoUrl: string, githubToken?: string): P
   const contributorCount = Array.isArray(contributors) ? contributors.length : 0;
 
   const [{ fileTree, totalFiles }, readme, dependencyManifest] = await Promise.all([
-    fetchFileTree(octokit, owner, repo, repoUrl),
-    fetchReadme(octokit, owner, repo, repoUrl).catch(() => ""),
-    fetchDependencyManifest(octokit, owner, repo, repoUrl).catch(() => "No dependency manifest detected"),
+    fetchFileTree(octokit, owner, repo, repoUrl, ref),
+    fetchReadme(octokit, owner, repo, repoUrl, ref).catch(() => ""),
+    fetchDependencyManifest(octokit, owner, repo, repoUrl, ref).catch(() => "No dependency manifest detected"),
   ]);
 
   const { content: entryFileContents, filesRead, filesSkipped } = await fetchAllSourceFiles(
@@ -310,7 +326,8 @@ export async function fetchRepoContext(repoUrl: string, githubToken?: string): P
     owner,
     repo,
     repoUrl,
-    fileTree
+    fileTree,
+    ref
   ).catch(() => ({ content: "", filesRead: 0, filesSkipped: fileTree.length }));
 
   const description = repoMeta.description;
