@@ -143,6 +143,8 @@ function getSourcePaths(fileTree: string[]): string[] {
   });
 }
 
+const BATCH_CONCURRENCY = 10;
+
 async function fetchAllSourceFiles(
   octokit: Octokit,
   owner: string,
@@ -156,19 +158,37 @@ async function fetchAllSourceFiles(
   let filesRead = 0;
   let filesSkipped = fileTree.length - sourcePaths.length;
 
-  for (const path of sourcePaths) {
+  // Fetch in parallel batches for speed
+  for (let i = 0; i < sourcePaths.length; i += BATCH_CONCURRENCY) {
     if (remaining <= 0) {
-      filesSkipped += 1;
-      continue;
+      filesSkipped += sourcePaths.length - i;
+      break;
     }
-    try {
-      type ContentResp = { content?: string; encoding?: string; size?: number };
-      const data = await requestOrThrow<ContentResp>(
-        octokit,
-        "GET /repos/{owner}/{repo}/contents/{path}",
-        { owner, repo, path },
-        repoUrl
-      );
+
+    const batch = sourcePaths.slice(i, i + BATCH_CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (path) => {
+        type ContentResp = { content?: string; encoding?: string; size?: number };
+        const data = await requestOrThrow<ContentResp>(
+          octokit,
+          "GET /repos/{owner}/{repo}/contents/{path}",
+          { owner, repo, path },
+          repoUrl
+        );
+        return { path, data };
+      })
+    );
+
+    for (const result of results) {
+      if (remaining <= 0) {
+        filesSkipped += 1;
+        continue;
+      }
+      if (result.status === "rejected") {
+        filesSkipped += 1;
+        continue;
+      }
+      const { path, data } = result.value;
       if (data.content && data.encoding === "base64") {
         const decoded = Buffer.from(data.content, "base64").toString("utf8");
         const chunk = truncateToChars(decoded, Math.min(remaining, config.maxFileChars));
@@ -178,8 +198,6 @@ async function fetchAllSourceFiles(
       } else {
         filesSkipped += 1;
       }
-    } catch {
-      filesSkipped += 1;
     }
   }
 
